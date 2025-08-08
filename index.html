@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>مراقب البثوث</title>
+  <style>
+    body { font-family: Arial, sans-serif; background: #f5f5f5; margin: 0; padding: 0; }
+    header { background: #673ab7; color: white; padding: 15px; text-align: center; }
+    .container { max-width: 800px; margin: 20px auto; padding: 10px; }
+    .channel { background: white; padding: 15px; border-radius: 8px; margin-bottom: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+    button { padding: 10px 15px; border: none; border-radius: 5px; cursor: pointer; }
+    .btn-primary { background: #673ab7; color: white; }
+    .modal { display: none; position: fixed; top:0; left:0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); }
+    .modal-content { background: white; padding: 20px; max-width: 400px; margin: 100px auto; border-radius: 8px; }
+    input { width: 100%; padding: 8px; margin-bottom: 10px; }
+  </style>
+</head>
+<body>
+  <header>
+    <h2>📺 مراقب البثوث</h2>
+    <button class="btn-primary" onclick="openModal()">➕ إضافة قناة</button>
+  </header>
+
+  <div class="container" id="channels"></div>
+
+  <!-- نافذة إضافة قناة -->
+  <div class="modal" id="modal">
+    <div class="modal-content">
+      <h3>إضافة قناة</h3>
+      <input type="text" id="channelName" placeholder="اسم القناة">
+      <input type="url" id="channelUrl" placeholder="رابط القناة">
+      <button class="btn-primary" onclick="submitRequest()">إرسال</button>
+      <button onclick="closeModal()">إلغاء</button>
+    </div>
+  </div>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNjqLeuj03klcwHbs3jxSIJk1RJ3zcbnc",
+      authDomain: "livematam-5b050.firebaseapp.com",
+      projectId: "livematam-5b050",
+      storageBucket: "livematam-5b050.firebasestorage.app",
+      messagingSenderId: "411694644929",
+      appId: "1:411694644929:web:50681d37ed7e0dd1965e40",
+      measurementId: "G-TE3KKNE1LH"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+
+    async function loadChannels() {
+      const container = document.getElementById('channels');
+      container.innerHTML = '';
+      const snapshot = await db.collection('channels').get();
+      if(snapshot.empty) {
+        container.innerHTML = "<p>لا توجد قنوات حالياً</p>";
+      } else {
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          container.innerHTML += `<div class="channel">
+            <h4>${c.name}</h4>
+            <a href="${c.url}" target="_blank">مشاهدة</a>
+            <p>الحالة: ${c.status || 'offline'}</p>
+          </div>`;
+        });
+      }
+    }
+
+    async function submitRequest() {
+      const name = document.getElementById('channelName').value.trim();
+      const url = document.getElementById('channelUrl').value.trim();
+      if(!name || !url) return alert("يرجى إدخال جميع الحقول");
+      await db.collection('requests').add({ name, url, timestamp: new Date() });
+      alert("تم إرسال طلبك وسيتم مراجعته");
+      closeModal();
+    }
+
+    function openModal() { document.getElementById('modal').style.display = 'block'; }
+    function closeModal() { document.getElementById('modal').style.display = 'none'; }
+
+    loadChannels();
+  </script>
+</body>
+</html>

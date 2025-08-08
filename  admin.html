@@ -1,0 +1,146 @@
+<!DOCTYPE html>
+<html dir="rtl" lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>لوحة الإدارة</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 0; padding: 0; background: #fafafa;}
+    header { background: #e91e63; color: white; padding: 15px; text-align: center;}
+    .container { max-width: 800px; margin: 20px auto; padding: 10px;}
+    .card { background: white; padding: 15px; border-radius: 8px; margin-bottom: 20px; box-shadow: 0 2px 5px rgba(0,0,0,0.1);}
+    button { padding: 5px 10px; margin: 2px; border: none; border-radius: 4px; cursor: pointer;}
+    .btn-approve { background: #4caf50; color: white;}
+    .btn-reject { background: #f44336; color: white;}
+    .btn-delete { background: #f44336; color: white;}
+    .btn-save { background: #2196f3; color: white;}
+  </style>
+</head>
+<body>
+  <header><h2>لوحة الإدارة</h2></header>
+  <div class="container" id="loginForm">
+    <input type="password" id="adminPass" placeholder="كلمة المرور">
+    <button onclick="login()">دخول</button>
+  </div>
+
+  <div class="container" id="adminPanel" style="display:none;">
+    <div class="card">
+      <h3>الطلبات</h3>
+      <div id="requests"></div>
+    </div>
+    <div class="card">
+      <h3>القنوات</h3>
+      <div id="channels"></div>
+    </div>
+    <div class="card">
+      <h3>إعدادات</h3>
+      <input type="text" id="ytKey" placeholder="YouTube API Key">
+      <button class="btn-save" onclick="saveKey()">حفظ</button>
+    </div>
+  </div>
+
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script>
+    const firebaseConfig = {
+      apiKey: "AIzaSyCNjqLeuj03klcwHbs3jxSIJk1RJ3zcbnc",
+      authDomain: "livematam-5b050.firebaseapp.com",
+      projectId: "livematam-5b050",
+      storageBucket: "livematam-5b050.firebasestorage.app",
+      messagingSenderId: "411694644929",
+      appId: "1:411694644929:web:50681d37ed7e0dd1965e40",
+      measurementId: "G-TE3KKNE1LH"
+    };
+    firebase.initializeApp(firebaseConfig);
+    const db = firebase.firestore();
+    const adminPassword = "admin123";
+
+    function login() {
+      if(document.getElementById('adminPass').value === adminPassword) {
+        document.getElementById('loginForm').style.display = 'none';
+        document.getElementById('adminPanel').style.display = 'block';
+        loadRequests();
+        loadChannels();
+        loadKey();
+      } else {
+        alert("كلمة مرور خاطئة");
+      }
+    }
+
+    async function loadRequests() {
+      const container = document.getElementById('requests');
+      container.innerHTML = '';
+      const snapshot = await db.collection('requests').get();
+      if(snapshot.empty) {
+        container.innerHTML = "<p>لا توجد طلبات</p>";
+      } else {
+        snapshot.forEach(doc => {
+          const r = doc.data();
+          container.innerHTML += `<div>
+            <b>${r.name}</b> - <a href="${r.url}" target="_blank">رابط</a>
+            <button class="btn-approve" onclick="approve('${doc.id}','${r.name}','${r.url}')">موافقة</button>
+            <button class="btn-reject" onclick="reject('${doc.id}')">رفض</button>
+          </div>`;
+        });
+      }
+    }
+
+    async function approve(id, name, url) {
+      await db.collection('channels').add({ name, url, status: 'offline' });
+      await db.collection('requests').doc(id).delete();
+      loadRequests();
+      loadChannels();
+    }
+
+    async function reject(id) {
+      await db.collection('requests').doc(id).delete();
+      loadRequests();
+    }
+
+    async function loadChannels() {
+      const container = document.getElementById('channels');
+      container.innerHTML = '';
+      const snapshot = await db.collection('channels').get();
+      if(snapshot.empty) {
+        container.innerHTML = "<p>لا توجد قنوات</p>";
+      } else {
+        snapshot.forEach(doc => {
+          const c = doc.data();
+          container.innerHTML += `<div>
+            <b>${c.name}</b> - <a href="${c.url}" target="_blank">رابط</a>
+            <select onchange="updateStatus('${doc.id}', this.value)">
+              <option value="offline" ${c.status==='offline'?'selected':''}>Offline</option>
+              <option value="live" ${c.status==='live'?'selected':''}>Live</option>
+              <option value="upcoming" ${c.status==='upcoming'?'selected':''}>Upcoming</option>
+            </select>
+            <button class="btn-delete" onclick="deleteChannel('${doc.id}')">حذف</button>
+          </div>`;
+        });
+      }
+    }
+
+    async function updateStatus(id, status) {
+      await db.collection('channels').doc(id).update({ status });
+      loadChannels();
+    }
+
+    async function deleteChannel(id) {
+      await db.collection('channels').doc(id).delete();
+      loadChannels();
+    }
+
+    async function saveKey() {
+      const key = document.getElementById('ytKey').value.trim();
+      await db.collection('settings').doc('youtube').set({ apiKey: key });
+      alert("تم الحفظ");
+    }
+
+    async function loadKey() {
+      const docSnap = await db.collection('settings').doc('youtube').get();
+      if(docSnap.exists) {
+        document.getElementById('ytKey').value = docSnap.data().apiKey || '';
+      }
+    }
+  </script>
+</body>
+</html>
